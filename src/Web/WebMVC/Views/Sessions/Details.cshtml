@@ -1,0 +1,161 @@
+﻿@using Microsoft.AspNetCore.Identity
+@inject UserManager<CodecampUser> UserManager
+@model Codecamp.Controllers.SessionsController.DetailPageModel
+
+@{
+    ViewData["Title"] = "Details";
+
+    // Get the speaker Id
+    int? speakerId = null;
+    var user = await UserManager.GetUserAsync(User);
+    if (user != null)
+    {
+        speakerId = user.SpeakerId;
+    }
+}
+
+<h2><span style="font-weight: bold;">Title:&nbsp;</span>@Model.Session.Name</h2>
+@*@if (user != null)
+    {
+        // Only display for logged in users
+        <div style="float: right;">
+            <div style="width: 100px;">
+                <i id='i_isUserFavorite' class='material-icons' style="font-size: xx-large; cursor: pointer;">star_bordered</i>
+            </div>
+            @Html.HiddenFor(model => user.Id, new { id = "hiddenFieldUserId" })
+            @Html.HiddenFor(model => model.Session.SessionId, new { id = "hiddenFieldSessionId" })
+            @Html.HiddenFor(model => model.Session.IsUserFavorite, new { id = "hiddenFieldIsUserFavorite" })
+        </div>
+    }*@
+
+<div style="margin-bottom: 40px;">
+    @foreach (var speaker in Model.Speakers)
+    {
+        <div style="max-width: 150px; max-height:150px; position: relative; margin-right: 25px;">
+            <a asp-controller="Speakers" asp-action="Details" asp-route-id="@speaker.SpeakerId">
+                <img style="max-width: 150px; max-height: 150px;"
+                     class="speakerImage"
+                     id="@(string.Format("{0}", speaker.SpeakerId))"
+                     src=@("/images/default_user_icon.jpg")
+                     alt="@(string.Format("{0}", speaker.FullName))" />
+                @if (speaker.IsMvp)
+                {
+                    <img style="width: 30px; height: 30px; z-index: 10; position: absolute; right: 20px; bottom: 20px;"
+                         src=@("/images/ms-mvp.jpg") alt=@("Microsoft MVP") />
+                }
+                <h5>@speaker.FullName</h5>
+            </a>
+        </div>
+    }
+</div>
+
+<div>
+    <hr />
+    <dl class="dl-horizontal">
+        <dt>
+            @Html.DisplayNameFor(model => model.Session.Name)
+        </dt>
+        <dd>
+            @Html.DisplayFor(model => model.Session.Name)
+        </dd>
+        <dt>@Html.DisplayNameFor(model => model.Session.TrackName)</dt>
+        <dd>@Html.DisplayFor(model => model.Session.TrackName)</dd>
+        <dt>@Html.DisplayNameFor(model => model.Session.TimeslotName)</dt>
+        <dd>@Html.DisplayFor(model => model.Session.TimeslotName)</dd>
+        <dt>
+            @Html.DisplayNameFor(model => model.Session.Description)
+        </dt>
+        <dd>
+            @Html.DisplayFor(model => model.Session.Description)
+        </dd>
+        <dt>
+            @Html.DisplayNameFor(model => model.Session.SkillLevel)
+        </dt>
+        <dd>
+            @Html.DisplayFor(model => model.Session.SkillLevel)
+        </dd>
+        <dt>
+            @Html.DisplayNameFor(model => model.Session.Keywords)
+        </dt>
+        <dd>
+            @Html.DisplayFor(model => model.Session.Keywords)
+        </dd>
+        <dt>
+            @Html.DisplayNameFor(model => model.Session.IsApproved)
+        </dt>
+        <dd>
+            @Html.DisplayFor(model => model.Session.IsApproved)
+        </dd>
+    </dl>
+</div>
+
+<div class="bottom-navigation">
+    @if (User.IsInRole("Admin") || (User.IsInRole("Speaker")
+     && speakerId.HasValue && Model.Speakers.Any(s => s.SpeakerId == speakerId.Value)))
+    {
+        <a asp-action="Edit" asp-route-id="@Model.Session.SessionId">Edit</a><span> | </span>
+    }
+    <a asp-action="Index">Back to List</a>
+</div>
+
+@section Scripts {
+    <script type="text/javascript">
+        function initializePage() {
+            let IsUserFavoriteValue = 'True' == $('#hiddenFieldIsUserFavorite').val();
+            if (IsUserFavoriteValue)
+                $('#i_isUserFavorite').text('star')
+            else
+                $('#i_isUserFavorite').text('star_bordered')
+
+            $('.speakerImage').each(function () {
+                setSpeakerImage(this, this.id);
+            });
+        }
+
+        function initializeEventHandlers() {
+            $('#i_isUserFavorite').click(function () {
+                // Is this a user's favorite
+                let IsUserFavoriteValue = 'True' == $('#hiddenFieldIsUserFavorite').val();
+                // Get the session Id
+                let sessionId = parseInt($('#hiddenFieldSessionId').val(), 10);
+                // Get the user's Id
+                let userId = $('#hiddenFieldUserId').val();
+
+                let options = {}
+                options.url = '/api/sessions/toggleFavoriteSession/' + sessionId;
+                options.type = 'POST';
+                options.dataType = 'json';
+                options.data = JSON.stringify(userId);
+                options.contentType = 'application/json';
+                options.success = function (data) {
+                    if (data == true) {
+                        // We're successful, toggle locally
+                        IsUserFavoriteValue = !IsUserFavoriteValue;
+                        // Set the hidden field
+                        $('#hiddenFieldIsUserFavorite').val(IsUserFavoriteValue == true ? "True" : "False");
+                    }
+
+                    // Toggle the star filled/bordered
+                    if (IsUserFavoriteValue)
+                        $('#i_isUserFavorite').text('star')
+                    else
+                        $('#i_isUserFavorite').text('star_bordered')
+                };
+                options.error = function () {
+                    // Error saving track to session
+                    $('#message').html('Error while calling Web API to toggle favorite session');
+                };
+                // Toggle the user favorite
+                $.ajax(options);
+            });
+        }
+
+        $(document).ready(function () {
+            // Initialize the page
+            initializePage();
+
+            // Initialie the page event handlers
+            initializeEventHandlers();
+        });
+    </script>
+}
